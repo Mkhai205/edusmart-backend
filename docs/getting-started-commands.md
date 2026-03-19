@@ -22,7 +22,7 @@ docker compose version
 Đứng tại thư mục backend:
 
 ```bash
-cd /d/workspace/Web/Project/EduSmart/backend
+cd <your-path>/backend
 ```
 
 Cài dependencies:
