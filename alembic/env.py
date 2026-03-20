@@ -5,7 +5,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import engine_from_config, pool
 
-from src.models import document, refresh_token, user  # noqa: F401
+from src.models import document, document_chunk, refresh_token, user  # noqa: F401
 from src.models.base import Base
 
 config = context.config

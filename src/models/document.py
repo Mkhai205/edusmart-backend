@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, func
+from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,4 +22,7 @@ class Document(Base):
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     total_pages: Mapped[int | None] = mapped_column(nullable=True)
     is_public: Mapped[bool] = mapped_column(default=False, nullable=False)
+    extraction_status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
+    extraction_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extracted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

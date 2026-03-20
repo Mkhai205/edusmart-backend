@@ -1,9 +1,11 @@
 import uuid
+from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.document import Document
+from src.models.document_chunk import DocumentChunk
 
 
 class DocumentsRepository:
@@ -21,6 +23,7 @@ class DocumentsRepository:
         file_size: int,
         total_pages: int | None,
         is_public: bool,
+        extraction_status: str,
     ) -> Document:
         document = Document(
             user_id=user_id,
@@ -31,6 +34,7 @@ class DocumentsRepository:
             file_size=file_size,
             total_pages=total_pages,
             is_public=is_public,
+            extraction_status=extraction_status,
         )
         self.session.add(document)
         await self.session.flush()
@@ -40,3 +44,59 @@ class DocumentsRepository:
         query = select(Document).where(Document.id == document_id, Document.user_id == user_id)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
+
+    async def get_document_by_id(self, document_id: uuid.UUID) -> Document | None:
+        query = select(Document).where(Document.id == document_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def update_extraction_status(
+        self,
+        document_id: uuid.UUID,
+        *,
+        status_value: str,
+        extraction_error: str | None = None,
+        extracted_at: datetime | None = None,
+    ) -> None:
+        query = (
+            update(Document)
+            .where(Document.id == document_id)
+            .values(
+                extraction_status=status_value,
+                extraction_error=extraction_error,
+                extracted_at=extracted_at,
+            )
+        )
+        await self.session.execute(query)
+
+    async def mark_extraction_completed(self, document_id: uuid.UUID, total_pages: int) -> None:
+        now = datetime.now(UTC)
+        query = (
+            update(Document)
+            .where(Document.id == document_id)
+            .values(
+                extraction_status="completed",
+                extraction_error=None,
+                extracted_at=now,
+                total_pages=total_pages,
+            )
+        )
+        await self.session.execute(query)
+
+    async def delete_chunks_by_document(self, document_id: uuid.UUID) -> None:
+        query = delete(DocumentChunk).where(DocumentChunk.document_id == document_id)
+        await self.session.execute(query)
+
+    async def bulk_create_chunks(self, document_id: uuid.UUID, chunks: list[dict]) -> None:
+        records = [
+            DocumentChunk(
+                document_id=document_id,
+                page_number=chunk["page_number"],
+                chunk_index=chunk["chunk_index"],
+                text_content=chunk["text_content"],
+                bbox=chunk.get("bbox"),
+                element_type=chunk["element_type"],
+            )
+            for chunk in chunks
+        ]
+        self.session.add_all(records)

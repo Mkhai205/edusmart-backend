@@ -1,15 +1,22 @@
 import re
 import unicodedata
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.database.session import AsyncSessionFactory
 from src.infrastructure.storage.minio_client import MinioStorageClient
 from src.models.user import User
+from src.modules.documents.extraction_service import DocumentExtractionService
 from src.modules.documents.repository import DocumentsRepository
-from src.modules.documents.schemas import DocumentDownloadResponse, DocumentUploadResponse
+from src.modules.documents.schemas import (
+    DocumentDownloadResponse,
+    DocumentExtractionStatusResponse,
+    DocumentUploadResponse,
+)
 
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
 ALLOWED_CONTENT_TYPES = {"application/pdf"}
@@ -21,14 +28,13 @@ class DocumentsService:
         self.repo = DocumentsRepository(session)
         self.minio_client = minio_client
 
-    async def upload_document(self, *, current_user: User, file: UploadFile) -> DocumentUploadResponse:
-        filename = file.filename or "document.pdf"
-        content_type = file.content_type or ""
+    async def upload_document(self, *, current_user: User, filename: str, content_type: str, content: bytes) -> DocumentUploadResponse:
+        filename = filename or "document.pdf"
+        content_type = content_type or ""
 
         if content_type not in ALLOWED_CONTENT_TYPES:
             raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Only PDF files are allowed")
 
-        content = await file.read()
         file_size = len(content)
 
         if file_size == 0:
@@ -54,6 +60,7 @@ class DocumentsService:
                 file_size=file_size,
                 total_pages=None,
                 is_public=False,
+                extraction_status="pending",
             )
             await self.session.commit()
 
@@ -67,6 +74,7 @@ class DocumentsService:
                 file_size=document.file_size,
                 total_pages=document.total_pages,
                 is_public=document.is_public,
+                extraction_status=document.extraction_status,
                 created_at=document.created_at,
                 download_url=download_url,
             )
@@ -105,6 +113,55 @@ class DocumentsService:
             download_url=download_url,
             expires_in_seconds=expires_in_seconds,
         )
+
+    async def get_document_extraction_status(
+        self,
+        *,
+        document_id: uuid.UUID,
+        current_user: User,
+    ) -> DocumentExtractionStatusResponse:
+        document = await self.repo.get_user_document(document_id=document_id, user_id=current_user.id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+        return DocumentExtractionStatusResponse(
+            document_id=document.id,
+            extraction_status=document.extraction_status,
+            total_pages=document.total_pages,
+            extraction_error=document.extraction_error,
+            extracted_at=document.extracted_at,
+        )
+
+    @staticmethod
+    async def run_extraction_pipeline(
+        document_id: uuid.UUID,
+        object_key: str,
+        minio_client: MinioStorageClient,
+    ) -> None:
+        extraction_service = DocumentExtractionService(minio_client)
+        async with AsyncSessionFactory() as session:
+            repo = DocumentsRepository(session)
+
+            await repo.update_extraction_status(document_id, status_value="processing", extraction_error=None)
+            await session.commit()
+
+            try:
+                total_pages, chunks = await extraction_service.extract_from_object(object_key)
+
+                await repo.delete_chunks_by_document(document_id)
+                if chunks:
+                    await repo.bulk_create_chunks(document_id, chunks)
+                await repo.mark_extraction_completed(document_id, total_pages)
+                await session.commit()
+            except Exception as exc:  # noqa: BLE001
+                await session.rollback()
+                await repo.update_extraction_status(
+                    document_id,
+                    status_value="failed",
+                    extraction_error=str(exc)[:1000],
+                    extracted_at=datetime.now(UTC),
+                )
+                await session.commit()
 
     def _build_object_key(self, user_id: uuid.UUID, filename: str) -> str:
         suffix = Path(filename).suffix.lower() or ".pdf"
