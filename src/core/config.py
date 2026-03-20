@@ -6,18 +6,27 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
+    # APP SETTINGS
     app_name: str = "EduSmart Backend"
     app_env: str = Field(default="development", alias="APP_ENV")
     api_prefix: str = "/api/v1"
 
     fastapi_host: str = Field(default="0.0.0.0", alias="FASTAPI_HOST")
     fastapi_port: int = Field(default=8000, alias="FASTAPI_PORT")
-
+    # DATABASE SETTINGS
     database_url: str = Field(alias="DATABASE_URL")
 
+    # MINIO SETTINGS
+    minio_endpoint: str = Field(alias="MINIO_ENDPOINT")
+    minio_access_key: str = Field(alias="MINIO_ACCESS_KEY")
+    minio_secret_key: str = Field(alias="MINIO_SECRET_KEY")
+    minio_secure: bool = Field(default=False, alias="MINIO_SECURE")
+    minio_bucket_name: str = Field(default="edusmart-docs", alias="MINIO_BUCKET_NAME")
+
+    # CORS SETTINGS
     cors_origins: str = Field(default="http://localhost:3000", alias="CORS_ORIGINS")
 
+    # GOOGLE OAUTH SETTINGS
     google_client_id: str = Field(alias="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field(alias="GOOGLE_CLIENT_SECRET")
     google_redirect_uri: str = Field(alias="GOOGLE_REDIRECT_URI")
@@ -31,6 +40,7 @@ class Settings(BaseSettings):
         alias="FRONTEND_LOGIN_FAILURE_REDIRECT",
     )
 
+    # JWT SETTINGS
     jwt_secret_key: str = Field(alias="JWT_SECRET_KEY")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     access_token_expire_minutes: int = Field(default=60, alias="ACCESS_TOKEN_EXPIRE_MINUTES")

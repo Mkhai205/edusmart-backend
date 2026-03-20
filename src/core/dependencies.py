@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
 from src.core.security import TokenError, decode_token
+from src.infrastructure.storage.minio_client import MinioStorageClient
 from src.infrastructure.database.session import get_db_session
 from src.modules.auth.service import AuthService
 
 settings = get_settings()
+minio_client = MinioStorageClient()
 
 
 async def get_current_user_id(
@@ -30,3 +32,7 @@ async def get_current_user(
 ):
     service = AuthService(session)
     return await service.get_user(user_id)
+
+
+def get_minio_client() -> MinioStorageClient:
+    return minio_client
