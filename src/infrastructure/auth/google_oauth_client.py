@@ -4,11 +4,13 @@ import httpx
 from fastapi import HTTPException, status
 from google.auth.transport import requests
 from google.oauth2 import id_token
+import logging
 
 from src.core.config import get_settings
 from src.modules.auth.schemas import GoogleProfile
 
 settings = get_settings()
+logger = logging.getLogger("uvicorn.error")
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
@@ -39,7 +41,15 @@ class GoogleOAuthClient:
             response = await client.post(GOOGLE_TOKEN_URL, data=payload)
 
         if response.status_code >= 400:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Failed to exchange Google code")
+            logger.error(
+                "Google token exchange failed: status=%s body=%s",
+                response.status_code,
+                response.text,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Failed to exchange Google code: {response.text}",
+            )
 
         return response.json()
 
@@ -59,6 +69,7 @@ class GoogleOAuthClient:
                     avatar_url=claims.get("picture"),
                 )
             except Exception as exc:  # noqa: BLE001
+                logger.exception("Google ID token verification failed")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid Google ID token",
@@ -73,7 +84,15 @@ class GoogleOAuthClient:
             response = await client.get(GOOGLE_USERINFO_URL, headers=headers)
 
         if response.status_code >= 400:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unable to fetch Google profile")
+            logger.error(
+                "Google userinfo fetch failed: status=%s body=%s",
+                response.status_code,
+                response.text,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Unable to fetch Google profile: {response.text}",
+            )
 
         profile = response.json()
         return GoogleProfile(

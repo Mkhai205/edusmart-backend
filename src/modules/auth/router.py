@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+import logging
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, status
@@ -14,6 +15,7 @@ from src.modules.auth.schemas import AuthUserResponse
 from src.modules.auth.service import AuthService
 
 settings = get_settings()
+logger = logging.getLogger("uvicorn.error")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -85,8 +87,12 @@ async def google_callback(
     try:
         token_response = await client.exchange_code(code)
         profile = await client.get_profile(token_response)
-    except HTTPException:
-        query = urlencode({"message": "google_auth_failed"})
+    except HTTPException as exc:
+        logger.error("Google OAuth callback failed: %s", exc.detail)
+        query_data = {"message": "google_auth_failed"}
+        if settings.app_env.lower() != "production":
+            query_data["reason"] = str(exc.detail)
+        query = urlencode(query_data)
         return RedirectResponse(f"{settings.frontend_login_failure_redirect}?{query}")
 
     service = AuthService(session)
