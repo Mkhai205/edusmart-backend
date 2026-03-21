@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     google_client_secret: str = Field(alias="GOOGLE_CLIENT_SECRET")
     google_redirect_uri: str = Field(alias="GOOGLE_REDIRECT_URI")
 
+    # AI EMBEDDING SETTINGS
+    gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
+    google_embeddings_model: str = Field(default="gemini-embedding-001", alias="GOOGLE_EMBEDDINGS_MODEL")
+    embedding_dimension: int = Field(default=768, alias="EMBEDDING_DIMENSION")
+    embedding_batch_size: int = Field(default=20, alias="EMBEDDING_BATCH_SIZE")
+    embedding_max_retries: int = Field(default=2, alias="EMBEDDING_MAX_RETRIES")
+    embedding_request_timeout_seconds: int = Field(default=60, alias="EMBEDDING_REQUEST_TIMEOUT_SECONDS")
+
     frontend_login_success_redirect: str = Field(
         default="http://localhost:3000/auth/callback/success",
         alias="FRONTEND_LOGIN_SUCCESS_REDIRECT",

@@ -100,3 +100,20 @@ class DocumentsRepository:
             for chunk in chunks
         ]
         self.session.add_all(records)
+
+    async def get_unembedded_chunks(self, document_id: uuid.UUID, *, limit: int) -> list[DocumentChunk]:
+        query = (
+            select(DocumentChunk)
+            .where(DocumentChunk.document_id == document_id, DocumentChunk.embedding.is_(None))
+            .order_by(DocumentChunk.chunk_index.asc())
+            .limit(limit)
+        )
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def bulk_update_embeddings(self, embeddings_by_chunk_id: dict[uuid.UUID, list[float]]) -> int:
+        for chunk_id, embedding in embeddings_by_chunk_id.items():
+            query = update(DocumentChunk).where(DocumentChunk.id == chunk_id).values(embedding=embedding)
+            await self.session.execute(query)
+
+        return len(embeddings_by_chunk_id)

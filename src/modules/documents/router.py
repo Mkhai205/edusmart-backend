@@ -67,3 +67,17 @@ async def get_document_extraction_status(
 ) -> DocumentExtractionStatusResponse:
     service = DocumentsService(session=session, minio_client=minio_client)
     return await service.get_document_extraction_status(document_id=document_id, current_user=current_user)
+
+
+@router.post("/{document_id}/vectorize", response_model=DocumentExtractionStatusResponse, status_code=status.HTTP_202_ACCEPTED)
+async def retry_document_vectorization(
+    document_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
+    session: AsyncSession = Depends(get_db_session),
+    minio_client: MinioStorageClient = Depends(get_minio_client),
+    current_user: User = Depends(get_current_user),
+) -> DocumentExtractionStatusResponse:
+    service = DocumentsService(session=session, minio_client=minio_client)
+    response = await service.queue_vectorization_retry(document_id=document_id, current_user=current_user)
+    background_tasks.add_task(DocumentsService.run_vectorization_pipeline, document_id)
+    return response

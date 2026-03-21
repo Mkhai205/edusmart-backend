@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
 from src.core.security import TokenError, decode_token
-from src.infrastructure.storage.minio_client import MinioStorageClient
 from src.infrastructure.database.session import get_db_session
+from src.infrastructure.storage.minio_client import MinioStorageClient
 from src.modules.auth.service import AuthService
 
 settings = get_settings()

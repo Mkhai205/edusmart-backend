@@ -37,7 +37,7 @@ Vì dùng Google Auth 100%, chúng ta không cần lưu mật khẩu. Chỉ cầ
 | `page_number` | `INTEGER` | Not Null | Nằm ở trang số mấy (Để filter "Tóm tắt từ trang X đến Y"). |
 | `text_content` | `TEXT` | Not Null | Nội dung chữ đã bóc tách. Dùng làm Context ném cho LLM. |
 | `bbox` | `JSONB` | Nullable | Mảng tọa độ `[x1, y1, x2, y2]`. Trả về cho UI để UI vẽ viền vàng đè lên file PDF khi AI trích dẫn. |
-| `embedding` | `VECTOR(768)`| Not Null | Vector ngữ nghĩa sinh ra từ Google/Langchain để so sánh độ tương đồng. |
+| `embedding` | `VECTOR(768)`| Nullable (phase đầu) | Vector ngữ nghĩa sinh ra từ Google/Langchain để so sánh độ tương đồng. |
 
 **Bảng: `annotations` (Lưu lịch sử bôi đen & ghi chú của User)**
 | Field | Data Type | Constraints | Ý nghĩa / Mục đích sử dụng |
