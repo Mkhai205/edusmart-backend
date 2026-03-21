@@ -10,6 +10,8 @@ from src.models.user import User
 from src.modules.documents.schemas import (
     DocumentDownloadResponse,
     DocumentExtractionStatusResponse,
+    SemanticSearchRequest,
+    SemanticSearchResponse,
     DocumentUploadResponse,
 )
 from src.modules.documents.service import DocumentsService
@@ -81,3 +83,21 @@ async def retry_document_vectorization(
     response = await service.queue_vectorization_retry(document_id=document_id, current_user=current_user)
     background_tasks.add_task(DocumentsService.run_vectorization_pipeline, document_id)
     return response
+
+
+@router.post("/{document_id}/search", response_model=SemanticSearchResponse)
+async def semantic_search_document_chunks(
+    document_id: uuid.UUID,
+    payload: SemanticSearchRequest,
+    session: AsyncSession = Depends(get_db_session),
+    minio_client: MinioStorageClient = Depends(get_minio_client),
+    current_user: User = Depends(get_current_user),
+) -> SemanticSearchResponse:
+    service = DocumentsService(session=session, minio_client=minio_client)
+    return await service.semantic_search(
+        document_id=document_id,
+        query=payload.query,
+        limit=payload.limit,
+        min_similarity=payload.min_similarity,
+        current_user=current_user,
+    )

@@ -117,3 +117,28 @@ class DocumentsRepository:
             await self.session.execute(query)
 
         return len(embeddings_by_chunk_id)
+
+    async def semantic_search_chunks(
+        self,
+        *,
+        document_id: uuid.UUID,
+        query_embedding: list[float],
+        limit: int,
+        min_similarity: float,
+    ) -> list[tuple[DocumentChunk, float]]:
+        distance_expr = DocumentChunk.embedding.cosine_distance(query_embedding)
+        similarity_expr = (1 - distance_expr).label("similarity")
+
+        query = (
+            select(DocumentChunk, similarity_expr)
+            .where(
+                DocumentChunk.document_id == document_id,
+                DocumentChunk.embedding.is_not(None),
+                similarity_expr >= min_similarity,
+            )
+            .order_by(distance_expr.asc())
+            .limit(limit)
+        )
+        result = await self.session.execute(query)
+        rows = result.all()
+        return [(row[0], float(row[1])) for row in rows]

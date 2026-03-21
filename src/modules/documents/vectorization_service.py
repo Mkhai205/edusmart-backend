@@ -25,7 +25,7 @@ class DocumentVectorizationService:
             return {}
 
         texts = [self._normalize_text(chunk.text_content) for chunk in chunks]
-        vectors = await self._embed_with_retry(texts)
+        vectors = await self._embed_with_retry(texts, task_type="RETRIEVAL_DOCUMENT")
 
         if len(vectors) != len(chunks):
             raise ValueError("Embedding output size mismatch")
@@ -41,9 +41,21 @@ class DocumentVectorizationService:
 
         return result
 
-    async def _embed_with_retry(self, texts: list[str]) -> list[list[float]]:
+    async def embed_query(self, query: str) -> list[float]:
+        vectors = await self._embed_with_retry([self._normalize_text(query)], task_type="RETRIEVAL_QUERY")
+        if not vectors:
+            raise ValueError("No query embedding was returned")
+
+        vector = vectors[0]
+        if len(vector) != self.settings.embedding_dimension:
+            raise ValueError(
+                f"Invalid query embedding dimension: expected {self.settings.embedding_dimension}, got {len(vector)}"
+            )
+        return vector
+
+    async def _embed_with_retry(self, texts: list[str], *, task_type: str | None = None) -> list[list[float]]:
         try:
-            return await self._embed_with_retry_for_model(self.primary_model, texts)
+            return await self._embed_with_retry_for_model(self.primary_model, texts, task_type=task_type)
         except Exception as exc:  # noqa: BLE001
             if not self._is_model_not_found_error(exc):
                 error_detail = str(exc) if exc else "unknown error"
@@ -60,7 +72,7 @@ class DocumentVectorizationService:
                     fallback_model,
                 )
                 try:
-                    return await self._embed_with_retry_for_model(fallback_model, texts)
+                    return await self._embed_with_retry_for_model(fallback_model, texts, task_type=task_type)
                 except Exception as fallback_exc:  # noqa: BLE001
                     tried.append(fallback_model)
                     if not self._is_model_not_found_error(fallback_exc):
@@ -72,13 +84,20 @@ class DocumentVectorizationService:
                 f"tried={tried}"
             ) from exc
 
-    async def _embed_with_retry_for_model(self, model: str, texts: list[str]) -> list[list[float]]:
+    async def _embed_with_retry_for_model(
+        self,
+        model: str,
+        texts: list[str],
+        *,
+        task_type: str | None = None,
+    ) -> list[list[float]]:
         attempts = self.settings.embedding_max_retries + 1
         backoff_seconds = 1.0
         last_error: Exception | None = None
         client = GoogleGenerativeAIEmbeddings(
             model=model,
             api_key=self.settings.gemini_api_key,
+            task_type=task_type,
             output_dimensionality=self.settings.embedding_dimension,
         )
 

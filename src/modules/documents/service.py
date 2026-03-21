@@ -18,6 +18,8 @@ from src.modules.documents.vectorization_service import DocumentVectorizationSer
 from src.modules.documents.schemas import (
     DocumentDownloadResponse,
     DocumentExtractionStatusResponse,
+    SemanticSearchChunkResult,
+    SemanticSearchResponse,
     DocumentUploadResponse,
 )
 
@@ -161,6 +163,43 @@ class DocumentsService:
             extraction_error=None,
             extracted_at=document.extracted_at,
         )
+
+    async def semantic_search(
+        self,
+        *,
+        document_id: uuid.UUID,
+        query: str,
+        limit: int,
+        min_similarity: float,
+        current_user: User,
+    ) -> SemanticSearchResponse:
+        document = await self.repo.get_user_document(document_id=document_id, user_id=current_user.id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+        settings = get_settings()
+        vectorization_service = DocumentVectorizationService(settings)
+        query_embedding = await vectorization_service.embed_query(query)
+
+        rows = await self.repo.semantic_search_chunks(
+            document_id=document_id,
+            query_embedding=query_embedding,
+            limit=limit,
+            min_similarity=min_similarity,
+        )
+        results = [
+            SemanticSearchChunkResult(
+                chunk_id=chunk.id,
+                page_number=chunk.page_number,
+                chunk_index=chunk.chunk_index,
+                text_content=chunk.text_content,
+                bbox=chunk.bbox,
+                element_type=chunk.element_type,
+                similarity=similarity,
+            )
+            for chunk, similarity in rows
+        ]
+        return SemanticSearchResponse(document_id=document_id, query=query, results=results)
 
     @staticmethod
     async def run_extraction_pipeline(
