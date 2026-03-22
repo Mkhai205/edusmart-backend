@@ -28,6 +28,32 @@ class DocumentDownloadResponse(BaseModel):
     expires_in_seconds: int
 
 
+class DocumentListItemResponse(BaseModel):
+    document_id: uuid.UUID
+    title: str
+    content_type: str
+    file_size: int
+    total_pages: int | None
+    extraction_status: ExtractionStatus
+    created_at: datetime
+
+
+class DocumentDetailResponse(BaseModel):
+    document_id: uuid.UUID
+    title: str
+    file_url: str
+    object_key: str
+    content_type: str
+    file_size: int
+    total_pages: int | None
+    is_public: bool
+    extraction_status: ExtractionStatus
+    extraction_error: str | None
+    extracted_at: datetime | None
+    created_at: datetime
+    download_url: str
+
+
 class DocumentExtractionStatusResponse(BaseModel):
     document_id: uuid.UUID
     extraction_status: ExtractionStatus

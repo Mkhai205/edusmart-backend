@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=20, alias="EMBEDDING_BATCH_SIZE")
     embedding_max_retries: int = Field(default=2, alias="EMBEDDING_MAX_RETRIES")
     embedding_request_timeout_seconds: int = Field(default=60, alias="EMBEDDING_REQUEST_TIMEOUT_SECONDS")
+    google_summary_model: str = Field(default="gemini-2.0-flash", alias="GOOGLE_SUMMARY_MODEL")
+    summary_temperature: float = Field(default=0.2, alias="SUMMARY_TEMPERATURE")
+    summary_max_tokens: int = Field(default=2048, alias="SUMMARY_MAX_TOKENS")
+    summary_request_timeout_seconds: int = Field(default=90, alias="SUMMARY_REQUEST_TIMEOUT_SECONDS")
+    summary_map_chunk_size: int = Field(default=12, alias="SUMMARY_MAP_CHUNK_SIZE")
 
     frontend_login_success_redirect: str = Field(
         default="http://localhost:3000/auth/callback/success",

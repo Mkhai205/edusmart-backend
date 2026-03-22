@@ -50,6 +50,17 @@ class DocumentsRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
+    async def list_user_documents(self, user_id: uuid.UUID, *, limit: int, offset: int) -> list[Document]:
+        query = (
+            select(Document)
+            .where(Document.user_id == user_id)
+            .order_by(Document.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
     async def update_extraction_status(
         self,
         document_id: uuid.UUID,

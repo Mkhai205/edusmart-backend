@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import get_settings
 from src.modules.auth.router import router as auth_router
 from src.modules.documents.router import router as documents_router
+from src.modules.summaries.router import router as summaries_router
 
 settings = get_settings()
 logger = logging.getLogger("uvicorn.error")
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router, prefix=settings.api_prefix)
     app.include_router(documents_router, prefix=settings.api_prefix)
+    app.include_router(summaries_router, prefix=settings.api_prefix)
     return app
 
 

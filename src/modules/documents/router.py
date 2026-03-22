@@ -9,7 +9,9 @@ from src.infrastructure.storage.minio_client import MinioStorageClient
 from src.models.user import User
 from src.modules.documents.schemas import (
     DocumentDownloadResponse,
+    DocumentDetailResponse,
     DocumentExtractionStatusResponse,
+    DocumentListItemResponse,
     SemanticSearchRequest,
     SemanticSearchResponse,
     DocumentUploadResponse,
@@ -17,6 +19,18 @@ from src.modules.documents.schemas import (
 from src.modules.documents.service import DocumentsService
 
 router = APIRouter(prefix="/documents", tags=["documents"])
+
+
+@router.get("", response_model=list[DocumentListItemResponse])
+async def list_documents(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
+    minio_client: MinioStorageClient = Depends(get_minio_client),
+    current_user: User = Depends(get_current_user),
+) -> list[DocumentListItemResponse]:
+    service = DocumentsService(session=session, minio_client=minio_client)
+    return await service.list_documents(current_user=current_user, limit=limit, offset=offset)
 
 
 @router.post("/upload", response_model=DocumentUploadResponse, status_code=status.HTTP_201_CREATED)
@@ -69,6 +83,17 @@ async def get_document_extraction_status(
 ) -> DocumentExtractionStatusResponse:
     service = DocumentsService(session=session, minio_client=minio_client)
     return await service.get_document_extraction_status(document_id=document_id, current_user=current_user)
+
+
+@router.get("/{document_id}/detail", response_model=DocumentDetailResponse)
+async def get_document_detail(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    minio_client: MinioStorageClient = Depends(get_minio_client),
+    current_user: User = Depends(get_current_user),
+) -> DocumentDetailResponse:
+    service = DocumentsService(session=session, minio_client=minio_client)
+    return await service.get_document_detail(document_id=document_id, current_user=current_user)
 
 
 @router.post("/{document_id}/vectorize", response_model=DocumentExtractionStatusResponse, status_code=status.HTTP_202_ACCEPTED)

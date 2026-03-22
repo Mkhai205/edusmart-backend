@@ -17,7 +17,9 @@ from src.modules.documents.repository import DocumentsRepository
 from src.modules.documents.vectorization_service import DocumentVectorizationService
 from src.modules.documents.schemas import (
     DocumentDownloadResponse,
+    DocumentDetailResponse,
     DocumentExtractionStatusResponse,
+    DocumentListItemResponse,
     SemanticSearchChunkResult,
     SemanticSearchResponse,
     DocumentUploadResponse,
@@ -118,6 +120,54 @@ class DocumentsService:
             document_id=document.id,
             download_url=download_url,
             expires_in_seconds=expires_in_seconds,
+        )
+
+    async def list_documents(
+        self,
+        *,
+        current_user: User,
+        limit: int,
+        offset: int,
+    ) -> list[DocumentListItemResponse]:
+        documents = await self.repo.list_user_documents(current_user.id, limit=limit, offset=offset)
+        return [
+            DocumentListItemResponse(
+                document_id=document.id,
+                title=document.title,
+                content_type=document.content_type,
+                file_size=document.file_size,
+                total_pages=document.total_pages,
+                extraction_status=document.extraction_status,
+                created_at=document.created_at,
+            )
+            for document in documents
+        ]
+
+    async def get_document_detail(
+        self,
+        *,
+        document_id: uuid.UUID,
+        current_user: User,
+    ) -> DocumentDetailResponse:
+        document = await self.repo.get_user_document(document_id=document_id, user_id=current_user.id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+        download_url = await self.minio_client.generate_download_url(object_key=document.object_key)
+        return DocumentDetailResponse(
+            document_id=document.id,
+            title=document.title,
+            file_url=document.file_url,
+            object_key=document.object_key,
+            content_type=document.content_type,
+            file_size=document.file_size,
+            total_pages=document.total_pages,
+            is_public=document.is_public,
+            extraction_status=document.extraction_status,
+            extraction_error=document.extraction_error,
+            extracted_at=document.extracted_at,
+            created_at=document.created_at,
+            download_url=download_url,
         )
 
     async def get_document_extraction_status(
