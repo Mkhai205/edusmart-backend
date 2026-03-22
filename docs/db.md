@@ -90,18 +90,22 @@ Lưu trữ các bản tóm tắt tài liệu do AI tạo ra.
 
 Lưu trữ các bài trắc nghiệm/câu hỏi được tạo từ tài liệu.
 
-| Trường dữ liệu (Column) | Kiểu dữ liệu (Type) | Ràng buộc (Constraints) | Ghi chú                              |
-| :---------------------- | :------------------ | :---------------------- | :----------------------------------- |
-| **`id`**                | `UUID`              | **PRIMARY KEY**         | Mặc định `gen_random_uuid()`         |
-| `document_id`           | `UUID`              | **FOREIGN KEY**         | Tham chiếu `documents(id)`           |
-| `user_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `users(id)`               |
-| `title`                 | `TEXT`              | NOT NULL                |                                      |
-| `questions`             | `JSONB`             | NOT NULL                | Mảng cấu trúc câu hỏi và đáp án      |
-| `quiz_type`             | `VARCHAR(50)`       | Indexed                 | Loại bài tập (VD: 'MULTIPLE_CHOICE') |
-| `difficulty`            | `VARCHAR(50)`       |                         | Độ khó                               |
-| `time_limit`            | `INT`               |                         | Giới hạn thời gian (giây)            |
-| `share_token`           | `TEXT`              | UNIQUE                  |                                      |
-| `created_at`            | `TIMESTAMPTZ`       | Indexed                 | Mặc định `now()`                     |
+| Trường dữ liệu (Column) | Kiểu dữ liệu (Type) | Ràng buộc (Constraints) | Ghi chú                                                  |
+| :---------------------- | :------------------ | :---------------------- | :------------------------------------------------------- |
+| **`id`**                | `UUID`              | **PRIMARY KEY**         | Mặc định `gen_random_uuid()`                             |
+| `document_id`           | `UUID`              | **FOREIGN KEY**         | Tham chiếu `documents(id)`                               |
+| `user_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `users(id)`                                   |
+| `title`                 | `TEXT`              | NOT NULL                |                                                          |
+| `questions`             | `JSONB`             |                         | Nullable trong lúc đang sinh đề; completed sẽ có dữ liệu |
+| `quiz_type`             | `VARCHAR(50)`       | Indexed                 | Loại bài tập (VD: 'MULTIPLE_CHOICE')                     |
+| `difficulty`            | `VARCHAR(50)`       | Indexed                 | Độ khó                                                   |
+| `time_limit`            | `INT`               | NOT NULL                | Giới hạn thời gian (giây)                                |
+| `options`               | `JSONB`             |                         | Metadata request (số câu, độ khó, phạm vi trang)         |
+| `quiz_status`           | `VARCHAR(20)`       | Indexed                 | `pending`/`processing`/`completed`/`failed`              |
+| `quiz_error`            | `TEXT`              |                         | Lỗi sinh đề (nếu có)                                     |
+| `share_token`           | `TEXT`              | UNIQUE                  |                                                          |
+| `completed_at`          | `TIMESTAMPTZ`       |                         | Thời điểm sinh đề hoàn tất                               |
+| `created_at`            | `TIMESTAMPTZ`       | Indexed                 | Mặc định `now()`                                         |
 
 ---
 
@@ -116,8 +120,8 @@ Lưu trữ lịch sử và kết quả làm bài tập của người dùng.
 | `user_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `users(id)`       |
 | `answers`               | `JSONB`             |                         | Câu trả lời của người dùng   |
 | `score`                 | `NUMERIC(5,2)`      | Indexed                 | Điểm số                      |
-| `total_questions`       | `INT`               |                         | Tổng số câu hỏi              |
-| `time_spent`            | `INT`               |                         | Thời gian làm bài (giây)     |
+| `total_questions`       | `INT`               | NOT NULL                | Tổng số câu hỏi              |
+| `time_spent`            | `INT`               | NOT NULL                | Thời gian làm bài (giây)     |
 | `completed_at`          | `TIMESTAMPTZ`       | Indexed                 | Mặc định `now()`             |
 
 ---
