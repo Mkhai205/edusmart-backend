@@ -23,7 +23,8 @@ dependencies = [
     "langchain-google-genai (>=4.2.1,<5.0.0)",
     "pgvector (>=0.3.6,<0.4.0)",
     "psycopg[binary] (>=3.3.3,<4.0.0)",
-    "pymupdf (>=1.26.4,<2.0.0)"
+    "pymupdf (>=1.26.4,<2.0.0)",
+    "pdfminer-six (>=20260107,<20260108)"
 ]
 
 [tool.poetry]
