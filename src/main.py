@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import get_settings
 from src.modules.auth.router import router as auth_router
 from src.modules.documents.router import router as documents_router
+from src.modules.flashcards.router import router as flashcards_router
 from src.modules.quizzes.router import router as quizzes_router
 from src.modules.summaries.router import router as summaries_router
 
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(documents_router, prefix=settings.api_prefix)
     app.include_router(summaries_router, prefix=settings.api_prefix)
     app.include_router(quizzes_router, prefix=settings.api_prefix)
+    app.include_router(flashcards_router, prefix=settings.api_prefix)
     return app
 
 

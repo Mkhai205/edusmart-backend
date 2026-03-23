@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     summary_max_tokens: int = Field(default=2048, alias="SUMMARY_MAX_TOKENS")
     summary_request_timeout_seconds: int = Field(default=90, alias="SUMMARY_REQUEST_TIMEOUT_SECONDS")
     summary_map_chunk_size: int = Field(default=12, alias="SUMMARY_MAP_CHUNK_SIZE")
+    pixabay_api_key: str | None = Field(default=None, alias="PIXABAY_API_KEY")
+    pixabay_base_url: str = Field(default="https://pixabay.com/api/", alias="PIXABAY_BASE_URL")
+    pixabay_request_timeout_seconds: int = Field(default=10, alias="PIXABAY_REQUEST_TIMEOUT_SECONDS")
 
     frontend_login_success_redirect: str = Field(
         default="http://localhost:3000/auth/callback/success",

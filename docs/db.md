@@ -154,7 +154,7 @@ Lưu trữ các thẻ ghi nhớ chi tiết (Mặt trước/Mặt sau).
 | `front`                 | `TEXT`              | NOT NULL                | Mặt trước (câu hỏi/từ vựng)                       |
 | `back`                  | `TEXT`              | NOT NULL                | Mặt sau (đáp án/định nghĩa)                       |
 | `image_url`             | `TEXT`              |                         | Hình ảnh minh họa                                 |
-| `image_source`          | `VARCHAR(50)`       |                         | Nguồn ảnh                                         |
+| `image_keyword`         | `TEXT`              |                         | key word để call api pixabay api (ai sinh ra)     |
 | `ease_factor`           | `NUMERIC(4,2)`      |                         | Hệ số ghi nhớ (Spaced Repetition)                 |
 | `interval_days`         | `INT`               |                         | Khoảng cách ngày lặp lại                          |
 | `repetitions`           | `INT`               |                         | Số lần đã ôn tập                                  |
