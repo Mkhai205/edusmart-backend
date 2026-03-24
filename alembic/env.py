@@ -5,7 +5,21 @@ from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import engine_from_config, pool
 
-from src.models import document, document_chunk, quiz, quiz_attempt, refresh_token, summary, user  # noqa: F401
+from src.models import (  # noqa: F401
+    document,
+    document_chunk,
+    flashcard,
+    flashcard_set,
+    goal_progress_log,
+    learning_goal,
+    quiz,
+    quiz_attempt,
+    refresh_token,
+    reminder_event,
+    reminder_preference,
+    summary,
+    user,
+)
 from src.models.base import Base
 
 config = context.config

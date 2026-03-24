@@ -183,17 +183,82 @@ Lưu trữ bản đồ tư duy.
 
 Lưu trữ mục tiêu học tập của người dùng.
 
-| Trường dữ liệu (Column) | Kiểu dữ liệu (Type) | Ràng buộc (Constraints) | Ghi chú                                     |
-| :---------------------- | :------------------ | :---------------------- | :------------------------------------------ |
-| **`id`**                | `UUID`              | **PRIMARY KEY**         | Mặc định `gen_random_uuid()`                |
-| `user_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `users(id)`                      |
-| `document_id`           | `UUID`              | **FOREIGN KEY**         | CÓ THỂ NULL. Tham chiếu `documents(id)`     |
-| `title`                 | `TEXT`              | NOT NULL                |                                             |
-| `description`           | `TEXT`              |                         |                                             |
-| `target_date`           | `DATE`              | Indexed                 | Ngày mục tiêu hoàn thành                    |
-| `progress`              | `INT`               |                         | Tiến độ (0-100%)                            |
-| `status`                | `VARCHAR(50)`       | Indexed                 | Trạng thái (VD: 'IN_PROGRESS', 'COMPLETED') |
-| `milestones`            | `JSONB`             |                         | Các cột mốc nhỏ                             |
+| Trường dữ liệu (Column) | Kiểu dữ liệu (Type) | Ràng buộc (Constraints) | Ghi chú                                 |
+| :---------------------- | :------------------ | :---------------------- | :-------------------------------------- |
+| **`id`**                | `UUID`              | **PRIMARY KEY**         | Mặc định `gen_random_uuid()`            |
+| `user_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `users(id)`                  |
+| `document_id`           | `UUID`              | **FOREIGN KEY**         | CÓ THỂ NULL. Tham chiếu `documents(id)` |
+| `title`                 | `TEXT`              | NOT NULL                |                                         |
+| `description`           | `TEXT`              |                         |                                         |
+| `recurrence_type`       | `VARCHAR(20)`       | Indexed, NOT NULL       | `daily` / `weekly` / `monthly`          |
+| `period_start`          | `DATE`              | Indexed, NOT NULL       | Ngày bắt đầu chu kỳ theo recurrence     |
+| `period_end`            | `DATE`              | Indexed, NOT NULL       | Ngày kết thúc chu kỳ theo recurrence    |
+| `target_date`           | `DATE`              | Indexed                 | Ngày mục tiêu hoàn thành                |
+| `progress`              | `INT`               |                         | Tiến độ (0-100%)                        |
+| `status`                | `VARCHAR(20)`       | Indexed                 | `in_progress` / `completed` / `overdue` |
+| `milestones`            | `JSONB`             |                         | Các cột mốc nhỏ                         |
+| `reminder_enabled`      | `BOOLEAN`           | NOT NULL                | Bật/tắt nhắc nhở cho mục tiêu           |
+| `last_reminded_at`      | `TIMESTAMPTZ`       |                         | Lần gần nhất đã phát nhắc nhở           |
+| `completed_at`          | `TIMESTAMPTZ`       |                         | Thời điểm hoàn thành mục tiêu           |
+| `created_at`            | `TIMESTAMPTZ`       | Indexed                 | Mặc định `now()`                        |
+| `updated_at`            | `TIMESTAMPTZ`       |                         | Mặc định `now()`                        |
+
+---
+
+### `goal_progress_logs`
+
+Lưu lịch sử cập nhật tiến độ của từng mục tiêu.
+
+| Trường dữ liệu (Column) | Kiểu dữ liệu (Type) | Ràng buộc (Constraints) | Ghi chú                                 |
+| :---------------------- | :------------------ | :---------------------- | :-------------------------------------- |
+| **`id`**                | `UUID`              | **PRIMARY KEY**         | Mặc định `gen_random_uuid()`            |
+| `goal_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `learning_goals(id)`         |
+| `user_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `users(id)`                  |
+| `previous_progress`     | `INT`               |                         | Tiến độ trước khi cập nhật              |
+| `new_progress`          | `INT`               | NOT NULL                | Tiến độ mới sau cập nhật                |
+| `note`                  | `TEXT`              |                         | Ghi chú khi cập nhật tiến độ (optional) |
+| `created_at`            | `TIMESTAMPTZ`       | Indexed                 | Mặc định `now()`                        |
+
+---
+
+### `reminder_preferences`
+
+Cấu hình nhắc nhở của từng người dùng.
+
+| Trường dữ liệu (Column)  | Kiểu dữ liệu (Type) | Ràng buộc (Constraints) | Ghi chú                                   |
+| :----------------------- | :------------------ | :---------------------- | :---------------------------------------- |
+| **`id`**                 | `UUID`              | **PRIMARY KEY**         | Mặc định `gen_random_uuid()`              |
+| `user_id`                | `UUID`              | UNIQUE, **FOREIGN KEY** | Tham chiếu `users(id)`                    |
+| `timezone`               | `VARCHAR(64)`       | NOT NULL                | Mặc định `UTC`                            |
+| `email_digest_enabled`   | `BOOLEAN`           | NOT NULL                | Bật/tắt email digest                      |
+| `digest_hour`            | `INT`               | NOT NULL                | Giờ gửi digest (theo timezone user)       |
+| `digest_minute`          | `INT`               | NOT NULL                | Phút gửi digest                           |
+| `due_soon_hours`         | `INT`               | NOT NULL                | Ngưỡng nhắc "sắp đến hạn" (giờ)           |
+| `overdue_cooldown_hours` | `INT`               | NOT NULL                | Khoảng cách tối thiểu giữa 2 nhắc trễ hạn |
+| `created_at`             | `TIMESTAMPTZ`       |                         | Mặc định `now()`                          |
+| `updated_at`             | `TIMESTAMPTZ`       |                         | Mặc định `now()`                          |
+
+---
+
+### `reminder_events`
+
+Hàng đợi và lịch sử phát nhắc nhở (in-app/email).
+
+| Trường dữ liệu (Column) | Kiểu dữ liệu (Type) | Ràng buộc (Constraints) | Ghi chú                                      |
+| :---------------------- | :------------------ | :---------------------- | :------------------------------------------- |
+| **`id`**                | `UUID`              | **PRIMARY KEY**         | Mặc định `gen_random_uuid()`                 |
+| `user_id`               | `UUID`              | **FOREIGN KEY**         | Tham chiếu `users(id)`                       |
+| `goal_id`               | `UUID`              | **FOREIGN KEY**         | CÓ THỂ NULL. Tham chiếu `learning_goals(id)` |
+| `channel`               | `VARCHAR(20)`       | NOT NULL                | `in_app` / `email`                           |
+| `event_type`            | `VARCHAR(30)`       | NOT NULL                | `due_soon` / `overdue` / `digest`            |
+| `status`                | `VARCHAR(20)`       | Indexed                 | `pending` / `sent` / `failed`                |
+| `scheduled_for`         | `TIMESTAMPTZ`       | Indexed, NOT NULL       | Thời điểm dự kiến gửi                        |
+| `sent_at`               | `TIMESTAMPTZ`       |                         | Thời điểm gửi thành công                     |
+| `error_message`         | `TEXT`              |                         | Lỗi gửi (nếu có)                             |
+| `payload`               | `JSONB`             |                         | Metadata nội dung nhắc nhở                   |
+| `retry_count`           | `INT`               | NOT NULL                | Số lần retry gửi                             |
+| `created_at`            | `TIMESTAMPTZ`       |                         | Mặc định `now()`                             |
+| `updated_at`            | `TIMESTAMPTZ`       |                         | Mặc định `now()`                             |
 
 ---
 
@@ -242,5 +307,8 @@ Quản lý các liên kết chia sẻ tài nguyên công khai.
 - `flashcards` thuộc về `flashcard_sets` (Nhiều - Một) - Xóa bộ thẻ sẽ xóa các thẻ con (`CASCADE`).
 - `mind_maps` liên kết với `documents` và `users` (Nhiều - Một)
 - `learning_goals` thuộc về `users`, có thể tùy chọn gán với một `documents` (Nhiều - Một)
+- `goal_progress_logs` thuộc về `learning_goals` và `users` (Nhiều - Một)
+- `reminder_preferences` thuộc về `users` theo quan hệ Một - Một
+- `reminder_events` thuộc về `users`, có thể tùy chọn liên kết với `learning_goals`
 - `pomodoro_sessions` thuộc về `users`, có thể tùy chọn gán với `documents` hoặc `learning_goals` (Nhiều - Một)
 - `shared_links` thuộc về `users`, trỏ đến các tài nguyên khác thông qua mô hình đa hình (Polymorphic: `resource_type` + `resource_id`).
