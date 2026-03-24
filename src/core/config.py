@@ -47,6 +47,20 @@ class Settings(BaseSettings):
     pixabay_base_url: str = Field(default="https://pixabay.com/api/", alias="PIXABAY_BASE_URL")
     pixabay_request_timeout_seconds: int = Field(default=10, alias="PIXABAY_REQUEST_TIMEOUT_SECONDS")
 
+    # REMINDER SETTINGS
+    reminder_scheduler_enabled: bool = Field(default=True, alias="REMINDER_SCHEDULER_ENABLED")
+    reminder_scan_interval_minutes: int = Field(default=15, alias="REMINDER_SCAN_INTERVAL_MINUTES")
+    reminder_digest_scan_interval_minutes: int = Field(default=15, alias="REMINDER_DIGEST_SCAN_INTERVAL_MINUTES")
+    reminder_email_dispatch_interval_minutes: int = Field(default=2, alias="REMINDER_EMAIL_DISPATCH_INTERVAL_MINUTES")
+
+    # SMTP SETTINGS
+    smtp_host: str | None = Field(default=None, alias="SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="SMTP_PORT")
+    smtp_username: str | None = Field(default=None, alias="SMTP_USERNAME")
+    smtp_password: str | None = Field(default=None, alias="SMTP_PASSWORD")
+    smtp_sender_email: str | None = Field(default=None, alias="SMTP_SENDER_EMAIL")
+    smtp_use_tls: bool = Field(default=True, alias="SMTP_USE_TLS")
+
     frontend_login_success_redirect: str = Field(
         default="http://localhost:3000/auth/callback/success",
         alias="FRONTEND_LOGIN_SUCCESS_REDIRECT",

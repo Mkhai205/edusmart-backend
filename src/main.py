@@ -4,9 +4,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import get_settings
+from src.modules.learning_goals.reminder_scheduler import start_reminder_scheduler, stop_reminder_scheduler
 from src.modules.auth.router import router as auth_router
 from src.modules.documents.router import router as documents_router
 from src.modules.flashcards.router import router as flashcards_router
+from src.modules.learning_goals.router import router as learning_goals_router
 from src.modules.quizzes.router import router as quizzes_router
 from src.modules.summaries.router import router as summaries_router
 
@@ -27,6 +29,11 @@ def create_app() -> FastAPI:
         logger.info("Swagger UI: %s/docs", base_url)
         logger.info("ReDoc: %s/redoc", base_url)
         logger.info("OpenAPI JSON: %s/openapi.json", base_url)
+        await start_reminder_scheduler()
+
+    @app.on_event("shutdown")
+    async def shutdown_jobs() -> None:
+        await stop_reminder_scheduler()
 
     app.add_middleware(
         CORSMiddleware,
@@ -45,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(summaries_router, prefix=settings.api_prefix)
     app.include_router(quizzes_router, prefix=settings.api_prefix)
     app.include_router(flashcards_router, prefix=settings.api_prefix)
+    app.include_router(learning_goals_router, prefix=settings.api_prefix)
     return app
 
 
