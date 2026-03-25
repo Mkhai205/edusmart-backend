@@ -106,6 +106,34 @@ class SummariesService:
             created_at=summary.created_at,
         )
 
+    async def get_latest_summary_status(
+        self,
+        *,
+        document_id: uuid.UUID,
+        current_user: User,
+    ) -> DocumentSummaryStatusResponse:
+        document = await self.repo.get_user_document(document_id=document_id, user_id=current_user.id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+        summary = await self.repo.get_latest_user_summary(document_id=document_id, user_id=current_user.id)
+        if summary is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Summary not found")
+
+        return DocumentSummaryStatusResponse(
+            summary_id=summary.id,
+            document_id=summary.document_id,
+            summary_status=summary.summary_status,
+            mode=SummaryMode(summary.mode),
+            options=summary.options or {},
+            content_markdown=summary.content_markdown if summary.summary_status == "completed" else None,
+            summary_error=summary.summary_error,
+            share_token=summary.share_token,
+            sources=None,
+            completed_at=summary.completed_at,
+            created_at=summary.created_at,
+        )
+
     @staticmethod
     async def run_summary_pipeline(summary_id: uuid.UUID) -> None:
         async with AsyncSessionFactory() as session:

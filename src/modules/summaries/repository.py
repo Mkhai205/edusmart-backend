@@ -117,6 +117,16 @@ class SummariesRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_latest_user_summary(self, *, document_id: uuid.UUID, user_id: uuid.UUID) -> Summary | None:
+        query = (
+            select(Summary)
+            .where(Summary.document_id == document_id, Summary.user_id == user_id)
+            .order_by(Summary.created_at.desc())
+            .limit(1)
+        )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def update_summary_status(
         self,
         *,
