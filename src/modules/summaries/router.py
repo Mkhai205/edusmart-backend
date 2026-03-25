@@ -39,6 +39,19 @@ async def queue_document_summary(
     return response
 
 
+@router.get("/{document_id}/summary/latest", response_model=DocumentSummaryStatusResponse)
+async def get_document_latest_summary_status(
+    document_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> DocumentSummaryStatusResponse:
+    service = SummariesService(session=session)
+    return await service.get_latest_summary_status(
+        document_id=document_id,
+        current_user=current_user,
+    )
+
+
 @router.get("/{document_id}/summary/{summary_id}", response_model=DocumentSummaryStatusResponse)
 async def get_document_summary_status(
     document_id: uuid.UUID,
