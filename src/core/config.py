@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     google_client_id: str = Field(alias="GOOGLE_CLIENT_ID")
     google_client_secret: str = Field(alias="GOOGLE_CLIENT_SECRET")
     google_redirect_uri: str = Field(alias="GOOGLE_REDIRECT_URI")
+    google_oauth_clock_skew_seconds: int = Field(default=10, alias="GOOGLE_OAUTH_CLOCK_SKEW_SECONDS")
 
     # AI EMBEDDING SETTINGS
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")

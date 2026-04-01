@@ -61,6 +61,7 @@ class GoogleOAuthClient:
                     raw_id_token,
                     requests.Request(),
                     settings.google_client_id,
+                    clock_skew_in_seconds=settings.google_oauth_clock_skew_seconds,
                 )
                 return GoogleProfile(
                     google_id=claims["sub"],
