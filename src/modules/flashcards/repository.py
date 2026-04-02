@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import and_, delete, select
+from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.document import Document
@@ -23,17 +23,24 @@ class FlashcardsRepository:
     async def create_manual_flashcard_set(
         self,
         *,
-        document_id: uuid.UUID,
+        document_id: uuid.UUID | None,
         user_id: uuid.UUID,
         title: str,
+        description: str | None,
+        category: str | None,
     ) -> FlashcardSet:
+        options = {
+            "manual": True,
+            "description": description,
+            "category": category,
+        }
         flashcard_set = FlashcardSet(
             document_id=document_id,
             user_id=user_id,
             title=title,
             algorithm="manual_v1",
             card_count=0,
-            options={"manual": True},
+            options=options,
             generation_status="completed",
             generation_error=None,
             completed_at=datetime.now(UTC),
@@ -92,6 +99,56 @@ class FlashcardsRepository:
         query = query.order_by(FlashcardSet.created_at.desc()).limit(limit).offset(offset)
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def get_set_learning_stats(
+        self,
+        *,
+        user_id: uuid.UUID,
+        set_ids: list[uuid.UUID],
+        now_at: datetime,
+    ) -> dict[uuid.UUID, dict[str, int]]:
+        if not set_ids:
+            return {}
+
+        studied_expr = case((Flashcard.repetitions > 0, 1), else_=0)
+        due_expr = case(
+            (
+                and_(
+                    Flashcard.next_review_at.is_not(None),
+                    Flashcard.next_review_at <= now_at,
+                ),
+                1,
+            ),
+            else_=0,
+        )
+
+        query = (
+            select(
+                Flashcard.set_id,
+                func.count(Flashcard.id).label("total_cards"),
+                func.sum(studied_expr).label("studied_cards"),
+                func.sum(due_expr).label("due_cards"),
+            )
+            .join(FlashcardSet, Flashcard.set_id == FlashcardSet.id)
+            .where(
+                FlashcardSet.user_id == user_id,
+                Flashcard.set_id.in_(set_ids),
+            )
+            .group_by(Flashcard.set_id)
+        )
+
+        result = await self.session.execute(query)
+        rows = result.all()
+
+        stats: dict[uuid.UUID, dict[str, int]] = {}
+        for set_id, total_cards, studied_cards, due_cards in rows:
+            stats[set_id] = {
+                "total_cards": int(total_cards or 0),
+                "studied_cards": int(studied_cards or 0),
+                "due_cards": int(due_cards or 0),
+            }
+
+        return stats
 
     async def update_set_status(
         self,
@@ -228,12 +285,27 @@ class FlashcardsRepository:
         flashcard_set.card_count = card_count
         await self.session.flush()
 
-    async def update_set_title(self, *, set_id: uuid.UUID, title: str) -> FlashcardSet | None:
+    async def update_set_content(
+        self,
+        *,
+        set_id: uuid.UUID,
+        title: str | None,
+        description: str | None,
+        category: str | None,
+    ) -> FlashcardSet | None:
         flashcard_set = await self.get_set_by_id(set_id)
         if flashcard_set is None:
             return None
 
-        flashcard_set.title = title
+        if title is not None:
+            flashcard_set.title = title
+
+        options = dict(flashcard_set.options or {})
+        if description is not None:
+            options["description"] = description
+        if category is not None:
+            options["category"] = category
+        flashcard_set.options = options
         await self.session.flush()
         return flashcard_set
 

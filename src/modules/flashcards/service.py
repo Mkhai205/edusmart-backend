@@ -112,14 +112,17 @@ class FlashcardsService:
         payload: ManualFlashcardSetCreateRequest,
         current_user: User,
     ) -> ManualFlashcardSetResponse:
-        document = await self.repo.get_user_document(document_id=payload.document_id, user_id=current_user.id)
-        if document is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        if payload.document_id is not None:
+            document = await self.repo.get_user_document(document_id=payload.document_id, user_id=current_user.id)
+            if document is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
         flashcard_set = await self.repo.create_manual_flashcard_set(
             document_id=payload.document_id,
             user_id=current_user.id,
             title=payload.title.strip(),
+            description=payload.description.strip() if payload.description else None,
+            category=payload.category.strip() if payload.category else None,
         )
         await self.session.commit()
         return self._to_manual_set_response(flashcard_set)
@@ -135,7 +138,12 @@ class FlashcardsService:
         if flashcard_set is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard set not found")
 
-        updated = await self.repo.update_set_title(set_id=set_id, title=payload.title.strip())
+        updated = await self.repo.update_set_content(
+            set_id=set_id,
+            title=payload.title.strip() if payload.title is not None else None,
+            description=payload.description.strip() if payload.description is not None else None,
+            category=payload.category.strip() if payload.category is not None else None,
+        )
         if updated is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard set not found")
 
@@ -169,7 +177,15 @@ class FlashcardsService:
             offset=offset,
             document_id=document_id,
         )
-        return [self._to_set_list_item(item) for item in sets]
+        now_at = datetime.now(UTC)
+        set_ids = [item.id for item in sets]
+        stats_map = await self.repo.get_set_learning_stats(
+            user_id=current_user.id,
+            set_ids=set_ids,
+            now_at=now_at,
+        )
+
+        return [self._to_set_list_item(item, stats_map.get(item.id)) for item in sets]
 
     async def get_flashcard_set_detail(self, *, set_id: uuid.UUID, current_user: User) -> FlashcardSetDetailResponse:
         flashcard_set = await self.repo.get_user_flashcard_set(set_id=set_id, user_id=current_user.id)
@@ -530,13 +546,31 @@ class FlashcardsService:
 
         return (next_ease.quantize(Decimal("0.01")), next_interval)
 
-    def _to_set_list_item(self, flashcard_set: FlashcardSet) -> FlashcardSetListItemResponse:
+    def _to_set_list_item(
+        self,
+        flashcard_set: FlashcardSet,
+        stats: dict[str, int] | None = None,
+    ) -> FlashcardSetListItemResponse:
+        total_cards = int(stats.get("total_cards", flashcard_set.card_count) if stats else flashcard_set.card_count)
+        studied_cards = int(stats.get("studied_cards", 0) if stats else 0)
+        due_cards = int(stats.get("due_cards", 0) if stats else 0)
+
+        if total_cards == 0 or studied_cards == 0:
+            learning_status = "chua_hoc"
+        elif due_cards > 0:
+            learning_status = "dang_hoc"
+        else:
+            learning_status = "da_hoc_xong"
+
         return FlashcardSetListItemResponse(
             set_id=flashcard_set.id,
             document_id=flashcard_set.document_id,
             title=flashcard_set.title,
             algorithm=flashcard_set.algorithm,
             generation_status=flashcard_set.generation_status,
+            learning_status=learning_status,
+            studied_cards=studied_cards,
+            due_cards=due_cards,
             card_count=flashcard_set.card_count,
             completed_at=flashcard_set.completed_at,
             created_at=flashcard_set.created_at,
@@ -564,6 +598,7 @@ class FlashcardsService:
             algorithm=flashcard_set.algorithm,
             generation_status=flashcard_set.generation_status,
             card_count=flashcard_set.card_count,
+            options=flashcard_set.options,
             completed_at=flashcard_set.completed_at,
             created_at=flashcard_set.created_at,
         )

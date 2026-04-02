@@ -20,6 +20,8 @@ Request:
 }
 ```
 
+`document_id` la optional cho bo the thu cong. Co the gui `null` hoac bo qua field nay.
+
 Response `201`:
 
 ```json

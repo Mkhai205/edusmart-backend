@@ -30,6 +30,7 @@ class FlashcardReviewRating(str, Enum):
 
 
 FlashcardSetStatusLiteral = Literal["pending", "processing", "completed", "failed"]
+FlashcardLearningStatusLiteral = Literal["chua_hoc", "dang_hoc", "da_hoc_xong"]
 
 
 class FlashcardGenerateRequest(BaseModel):
@@ -62,10 +63,13 @@ class FlashcardQueuedResponse(BaseModel):
 
 class FlashcardSetListItemResponse(BaseModel):
     set_id: uuid.UUID
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None
     title: str
     algorithm: str | None
     generation_status: FlashcardSetStatusLiteral
+    learning_status: FlashcardLearningStatusLiteral
+    studied_cards: int
+    due_cards: int
     card_count: int
     completed_at: datetime | None
     created_at: datetime
@@ -73,7 +77,7 @@ class FlashcardSetListItemResponse(BaseModel):
 
 class FlashcardSetDetailResponse(BaseModel):
     set_id: uuid.UUID
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None
     title: str
     algorithm: str | None
     generation_status: FlashcardSetStatusLiteral
@@ -129,21 +133,26 @@ class FlashcardReviewResponse(BaseModel):
 
 
 class ManualFlashcardSetCreateRequest(BaseModel):
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None = None
     title: str = Field(min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    category: str | None = Field(default=None, max_length=255)
 
 
 class ManualFlashcardSetUpdateRequest(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=2000)
+    category: str | None = Field(default=None, max_length=255)
 
 
 class ManualFlashcardSetResponse(BaseModel):
     set_id: uuid.UUID
-    document_id: uuid.UUID
+    document_id: uuid.UUID | None
     title: str
     algorithm: str | None
     generation_status: FlashcardSetStatusLiteral
     card_count: int
+    options: dict | None
     completed_at: datetime | None
     created_at: datetime
 
