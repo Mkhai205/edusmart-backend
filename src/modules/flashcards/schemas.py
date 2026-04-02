@@ -126,3 +126,39 @@ class FlashcardReviewResponse(BaseModel):
     interval_days: int
     repetitions: int
     next_review_at: datetime
+
+
+class ManualFlashcardSetCreateRequest(BaseModel):
+    document_id: uuid.UUID
+    title: str = Field(min_length=1, max_length=255)
+
+
+class ManualFlashcardSetUpdateRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=255)
+
+
+class ManualFlashcardSetResponse(BaseModel):
+    set_id: uuid.UUID
+    document_id: uuid.UUID
+    title: str
+    algorithm: str | None
+    generation_status: FlashcardSetStatusLiteral
+    card_count: int
+    completed_at: datetime | None
+    created_at: datetime
+
+
+class ManualFlashcardCardCreateRequest(BaseModel):
+    card_type: FlashcardType = FlashcardType.TERM_DEFINITION
+    front: str = Field(min_length=1)
+    back: str = Field(min_length=1)
+    image_url: str | None = None
+    image_keyword: str | None = None
+
+
+class ManualFlashcardCardUpdateRequest(BaseModel):
+    card_type: FlashcardType | None = None
+    front: str | None = Field(default=None, min_length=1)
+    back: str | None = Field(default=None, min_length=1)
+    image_url: str | None = None
+    image_keyword: str | None = None

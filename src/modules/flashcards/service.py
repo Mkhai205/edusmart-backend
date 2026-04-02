@@ -20,6 +20,11 @@ from src.modules.flashcards.schemas import (
     FlashcardAlgorithm,
     FlashcardGenerateRequest,
     FlashcardItemResponse,
+    ManualFlashcardCardCreateRequest,
+    ManualFlashcardCardUpdateRequest,
+    ManualFlashcardSetCreateRequest,
+    ManualFlashcardSetResponse,
+    ManualFlashcardSetUpdateRequest,
     FlashcardQueuedResponse,
     FlashcardReviewRating,
     FlashcardReviewRequest,
@@ -101,6 +106,55 @@ class FlashcardsService:
             created_at=flashcard_set.created_at,
         )
 
+    async def create_manual_set(
+        self,
+        *,
+        payload: ManualFlashcardSetCreateRequest,
+        current_user: User,
+    ) -> ManualFlashcardSetResponse:
+        document = await self.repo.get_user_document(document_id=payload.document_id, user_id=current_user.id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+        flashcard_set = await self.repo.create_manual_flashcard_set(
+            document_id=payload.document_id,
+            user_id=current_user.id,
+            title=payload.title.strip(),
+        )
+        await self.session.commit()
+        return self._to_manual_set_response(flashcard_set)
+
+    async def update_manual_set(
+        self,
+        *,
+        set_id: uuid.UUID,
+        payload: ManualFlashcardSetUpdateRequest,
+        current_user: User,
+    ) -> ManualFlashcardSetResponse:
+        flashcard_set = await self.repo.get_user_flashcard_set(set_id=set_id, user_id=current_user.id)
+        if flashcard_set is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard set not found")
+
+        updated = await self.repo.update_set_title(set_id=set_id, title=payload.title.strip())
+        if updated is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard set not found")
+
+        await self.session.commit()
+        return self._to_manual_set_response(updated)
+
+    async def delete_manual_set(
+        self,
+        *,
+        set_id: uuid.UUID,
+        current_user: User,
+    ) -> None:
+        flashcard_set = await self.repo.get_user_flashcard_set(set_id=set_id, user_id=current_user.id)
+        if flashcard_set is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard set not found")
+
+        await self.repo.delete_set(set_id=set_id)
+        await self.session.commit()
+
     async def list_flashcard_sets(
         self,
         *,
@@ -156,6 +210,82 @@ class FlashcardsService:
             set_id=set_id,
         )
         return [self._to_due_today_response(card, flashcard_set) for card, flashcard_set in due_rows]
+
+    async def create_manual_card(
+        self,
+        *,
+        set_id: uuid.UUID,
+        payload: ManualFlashcardCardCreateRequest,
+        current_user: User,
+    ) -> FlashcardItemResponse:
+        flashcard_set = await self.repo.get_user_flashcard_set(set_id=set_id, user_id=current_user.id)
+        if flashcard_set is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard set not found")
+
+        now_at = datetime.now(UTC)
+        card = await self.repo.create_card(
+            set_id=set_id,
+            card_type=payload.card_type.value,
+            front=payload.front.strip(),
+            back=payload.back.strip(),
+            image_url=payload.image_url,
+            image_keyword=payload.image_keyword,
+            ease_factor=Decimal("2.50"),
+            interval_days=1,
+            repetitions=0,
+            next_review_at=now_at,
+        )
+
+        card_count = await self.repo.count_cards_in_set(set_id=set_id)
+        await self.repo.update_set_card_count(set_id=set_id, card_count=card_count)
+        await self.session.commit()
+
+        return self._to_card_item(card)
+
+    async def update_manual_card(
+        self,
+        *,
+        card_id: uuid.UUID,
+        payload: ManualFlashcardCardUpdateRequest,
+        current_user: User,
+    ) -> FlashcardItemResponse:
+        card = await self.repo.get_user_card(card_id=card_id, user_id=current_user.id)
+        if card is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard not found")
+
+        provided_fields = payload.model_fields_set
+
+        updated = await self.repo.update_card_content(
+            card_id=card_id,
+            card_type=payload.card_type.value if payload.card_type is not None else None,
+            front=payload.front.strip() if payload.front is not None else None,
+            back=payload.back.strip() if payload.back is not None else None,
+            image_url=payload.image_url,
+            image_keyword=payload.image_keyword,
+            update_image_url="image_url" in provided_fields,
+            update_image_keyword="image_keyword" in provided_fields,
+        )
+        if updated is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard not found")
+
+        await self.session.commit()
+        return self._to_card_item(updated)
+
+    async def delete_manual_card(
+        self,
+        *,
+        card_id: uuid.UUID,
+        current_user: User,
+    ) -> None:
+        card = await self.repo.get_user_card(card_id=card_id, user_id=current_user.id)
+        if card is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flashcard not found")
+
+        set_id = card.set_id
+        await self.repo.delete_card(card_id=card_id)
+        card_count = await self.repo.count_cards_in_set(set_id=set_id)
+        await self.repo.update_set_card_count(set_id=set_id, card_count=card_count)
+        await self.session.commit()
 
     async def review_card(
         self,
@@ -422,6 +552,18 @@ class FlashcardsService:
             generation_error=flashcard_set.generation_error,
             card_count=flashcard_set.card_count,
             options=flashcard_set.options,
+            completed_at=flashcard_set.completed_at,
+            created_at=flashcard_set.created_at,
+        )
+
+    def _to_manual_set_response(self, flashcard_set: FlashcardSet) -> ManualFlashcardSetResponse:
+        return ManualFlashcardSetResponse(
+            set_id=flashcard_set.id,
+            document_id=flashcard_set.document_id,
+            title=flashcard_set.title,
+            algorithm=flashcard_set.algorithm,
+            generation_status=flashcard_set.generation_status,
+            card_count=flashcard_set.card_count,
             completed_at=flashcard_set.completed_at,
             created_at=flashcard_set.created_at,
         )

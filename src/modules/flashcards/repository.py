@@ -20,6 +20,28 @@ class FlashcardsRepository:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
+    async def create_manual_flashcard_set(
+        self,
+        *,
+        document_id: uuid.UUID,
+        user_id: uuid.UUID,
+        title: str,
+    ) -> FlashcardSet:
+        flashcard_set = FlashcardSet(
+            document_id=document_id,
+            user_id=user_id,
+            title=title,
+            algorithm="manual_v1",
+            card_count=0,
+            options={"manual": True},
+            generation_status="completed",
+            generation_error=None,
+            completed_at=datetime.now(UTC),
+        )
+        self.session.add(flashcard_set)
+        await self.session.flush()
+        return flashcard_set
+
     async def create_flashcard_set(
         self,
         *,
@@ -127,6 +149,97 @@ class FlashcardsRepository:
         )
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def create_card(
+        self,
+        *,
+        set_id: uuid.UUID,
+        card_type: str,
+        front: str,
+        back: str,
+        image_url: str | None,
+        image_keyword: str | None,
+        ease_factor: Decimal,
+        interval_days: int,
+        repetitions: int,
+        next_review_at: datetime,
+    ) -> Flashcard:
+        card = Flashcard(
+            set_id=set_id,
+            card_type=card_type,
+            front=front,
+            back=back,
+            image_url=image_url,
+            image_keyword=image_keyword,
+            ease_factor=ease_factor,
+            interval_days=interval_days,
+            repetitions=repetitions,
+            next_review_at=next_review_at,
+            last_rating=None,
+        )
+        self.session.add(card)
+        await self.session.flush()
+        return card
+
+    async def update_card_content(
+        self,
+        *,
+        card_id: uuid.UUID,
+        card_type: str | None,
+        front: str | None,
+        back: str | None,
+        image_url: str | None,
+        image_keyword: str | None,
+        update_image_url: bool,
+        update_image_keyword: bool,
+    ) -> Flashcard | None:
+        card = await self.get_card_by_id(card_id)
+        if card is None:
+            return None
+
+        if card_type is not None:
+            card.card_type = card_type
+        if front is not None:
+            card.front = front
+        if back is not None:
+            card.back = back
+
+        if update_image_url:
+            card.image_url = image_url
+        if update_image_keyword:
+            card.image_keyword = image_keyword
+        await self.session.flush()
+        return card
+
+    async def delete_card(self, *, card_id: uuid.UUID) -> None:
+        await self.session.execute(delete(Flashcard).where(Flashcard.id == card_id))
+        await self.session.flush()
+
+    async def count_cards_in_set(self, *, set_id: uuid.UUID) -> int:
+        query = select(Flashcard).where(Flashcard.set_id == set_id)
+        result = await self.session.execute(query)
+        return len(list(result.scalars().all()))
+
+    async def update_set_card_count(self, *, set_id: uuid.UUID, card_count: int) -> None:
+        flashcard_set = await self.get_set_by_id(set_id)
+        if flashcard_set is None:
+            return
+
+        flashcard_set.card_count = card_count
+        await self.session.flush()
+
+    async def update_set_title(self, *, set_id: uuid.UUID, title: str) -> FlashcardSet | None:
+        flashcard_set = await self.get_set_by_id(set_id)
+        if flashcard_set is None:
+            return None
+
+        flashcard_set.title = title
+        await self.session.flush()
+        return flashcard_set
+
+    async def delete_set(self, *, set_id: uuid.UUID) -> None:
+        await self.session.execute(delete(FlashcardSet).where(FlashcardSet.id == set_id))
+        await self.session.flush()
 
     async def get_user_card(self, card_id: uuid.UUID, user_id: uuid.UUID) -> Flashcard | None:
         query = (

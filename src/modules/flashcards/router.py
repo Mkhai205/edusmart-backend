@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_current_user
@@ -9,6 +9,11 @@ from src.models.user import User
 from src.modules.flashcards.schemas import (
     FlashcardGenerateRequest,
     FlashcardItemResponse,
+    ManualFlashcardCardCreateRequest,
+    ManualFlashcardCardUpdateRequest,
+    ManualFlashcardSetCreateRequest,
+    ManualFlashcardSetResponse,
+    ManualFlashcardSetUpdateRequest,
     FlashcardQueuedResponse,
     FlashcardReviewRequest,
     FlashcardReviewResponse,
@@ -19,6 +24,71 @@ from src.modules.flashcards.schemas import (
 from src.modules.flashcards.service import FlashcardsService
 
 router = APIRouter(prefix="/learning/flashcards", tags=["flashcards"])
+
+
+@router.post("/manual/sets", response_model=ManualFlashcardSetResponse, status_code=status.HTTP_201_CREATED)
+async def create_manual_flashcard_set(
+    payload: ManualFlashcardSetCreateRequest,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> ManualFlashcardSetResponse:
+    service = FlashcardsService(session=session)
+    return await service.create_manual_set(payload=payload, current_user=current_user)
+
+
+@router.patch("/manual/sets/{set_id}", response_model=ManualFlashcardSetResponse)
+async def update_manual_flashcard_set(
+    set_id: uuid.UUID,
+    payload: ManualFlashcardSetUpdateRequest,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> ManualFlashcardSetResponse:
+    service = FlashcardsService(session=session)
+    return await service.update_manual_set(set_id=set_id, payload=payload, current_user=current_user)
+
+
+@router.delete("/manual/sets/{set_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_manual_flashcard_set(
+    set_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    service = FlashcardsService(session=session)
+    await service.delete_manual_set(set_id=set_id, current_user=current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/manual/sets/{set_id}/cards", response_model=FlashcardItemResponse, status_code=status.HTTP_201_CREATED)
+async def create_manual_flashcard_card(
+    set_id: uuid.UUID,
+    payload: ManualFlashcardCardCreateRequest,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> FlashcardItemResponse:
+    service = FlashcardsService(session=session)
+    return await service.create_manual_card(set_id=set_id, payload=payload, current_user=current_user)
+
+
+@router.patch("/manual/cards/{card_id}", response_model=FlashcardItemResponse)
+async def update_manual_flashcard_card(
+    card_id: uuid.UUID,
+    payload: ManualFlashcardCardUpdateRequest,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> FlashcardItemResponse:
+    service = FlashcardsService(session=session)
+    return await service.update_manual_card(card_id=card_id, payload=payload, current_user=current_user)
+
+
+@router.delete("/manual/cards/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_manual_flashcard_card(
+    card_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    service = FlashcardsService(session=session)
+    await service.delete_manual_card(card_id=card_id, current_user=current_user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("", response_model=list[FlashcardSetListItemResponse])
